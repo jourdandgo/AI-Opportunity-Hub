@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Opportunity, Recommendation } from '../types';
 import { motion } from 'motion/react';
+import OpportunityDetailModal from './OpportunityDetailModal';
 
 interface Props {
   opportunities: Opportunity[];
 }
 
 export default function DecisionBoard({ opportunities }: Props) {
+  const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
+
   const categories: { type: Recommendation; label: string; desc: string; stripe: string }[] = [
     { type: 'Pursue', label: 'Priority Pursue', desc: 'High impact, high feasibility. Execute immediately.', stripe: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' },
     { type: 'Pilot', label: 'Technical Pilot', desc: 'High promise, moderate complexity. Test at scale.', stripe: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' },
@@ -34,6 +38,7 @@ export default function DecisionBoard({ opportunities }: Props) {
                  <motion.div 
                    layout
                    key={opp.id} 
+                   onClick={() => setSelectedOpp(opp)}
                    className="bg-[#0D1117] rounded-2xl border border-white/5 p-6 shadow-2xl hover:border-indigo-500/30 transition-all cursor-pointer relative overflow-hidden group"
                  >
                    <div className={`absolute top-0 left-0 w-1 h-full ${cat.stripe}`} />
@@ -75,6 +80,11 @@ export default function DecisionBoard({ opportunities }: Props) {
           </div>
         );
       })}
+      
+      <OpportunityDetailModal 
+        selectedOpp={selectedOpp} 
+        onClose={() => setSelectedOpp(null)} 
+      />
     </div>
   );
 }

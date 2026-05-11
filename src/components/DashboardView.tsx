@@ -3,6 +3,7 @@ import { SummaryStats, Opportunity, Recommendation } from '../types';
 import { Target, Rocket, RefreshCw, Archive, Plus, BarChart3, PieChart as PieChartIcon, X, Users, Activity, Layers, ArrowRight, Zap } from 'lucide-react';
 import { ReactNode } from 'react';
 import Modal from './Modal';
+import OpportunityDetailModal from './OpportunityDetailModal';
 import { 
   BarChart, 
   Bar, 
@@ -26,6 +27,7 @@ interface Props {
 
 export default function DashboardView({ stats, opportunities, onAddClick, onSeed, isSeeding }: Props) {
   const [filterRec, setFilterRec] = useState<Recommendation | null>(null);
+  const [filterDept, setFilterDept] = useState<string | null>(null);
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
 
   const chartData = [
@@ -42,13 +44,23 @@ export default function DashboardView({ stats, opportunities, onAddClick, onSeed
     }, {} as Record<string, number>)
   ).map(([name, value]) => ({ name, value }));
 
-  const filteredOpps = (filterRec 
-    ? opportunities.filter(o => o.recommendation === filterRec)
-    : opportunities).sort((a, b) => b.totalScore - a.totalScore);
+  const filteredOpps = opportunities
+    .filter(o => {
+      const recMatch = !filterRec || o.recommendation === filterRec;
+      const deptMatch = !filterDept || o.department === filterDept;
+      return recMatch && deptMatch;
+    })
+    .sort((a, b) => b.totalScore - a.totalScore);
 
   const handleChartClick = (data: any) => {
     if (data && data.activeLabel) {
       setFilterRec(data.activeLabel as Recommendation);
+    }
+  };
+
+  const handlePieClick = (data: any) => {
+    if (data && data.name) {
+      setFilterDept(data.name);
     }
   };
 
@@ -154,14 +166,24 @@ export default function DashboardView({ stats, opportunities, onAddClick, onSeed
         </div>
 
         <div className="bg-[#0D1117] p-8 rounded-2xl border border-white/5 shadow-2xl">
-          <div className="flex items-center gap-2 mb-8">
-             <PieChartIcon size={20} className="text-indigo-400" />
-             <h3 className="font-display font-bold text-lg text-white">Org Load</h3>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-2">
+               <PieChartIcon size={20} className="text-indigo-400" />
+               <h3 className="font-display font-bold text-lg text-white">Org Load</h3>
+            </div>
+            {filterDept && (
+              <button 
+                onClick={() => setFilterDept(null)}
+                className="text-[10px] font-bold uppercase text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 rounded-full transition-colors"
+              >
+                <X size={12} /> Clear Filter
+              </button>
+            )}
           </div>
           <div className="h-64 w-full flex items-center justify-center">
             {deptData.length > 0 ? (
               <div className="flex flex-col md:flex-row items-center gap-8 w-full">
-                <div className="h-64 w-64 flex-shrink-0">
+                <div className="h-64 w-64 flex-shrink-0 cursor-pointer">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -175,21 +197,40 @@ export default function DashboardView({ stats, opportunities, onAddClick, onSeed
                         animationBegin={0}
                         animationDuration={1500}
                         stroke="none"
+                        onClick={handlePieClick}
                       >
                         {deptData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6]} strokeWidth={0} />
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6]} 
+                            strokeWidth={0} 
+                            opacity={filterDept === null || filterDept === entry.name ? 1 : 0.2}
+                            className="transition-all duration-300 outline-none"
+                          />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip content={<CustomTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="flex-1 space-y-3 min-w-[140px]">
                    {deptData.map((dept, index) => (
-                     <div key={dept.name} className="flex items-center justify-between group gap-4">
+                     <div 
+                       key={dept.name} 
+                       onClick={() => setFilterDept(dept.name)}
+                       className={`flex items-center justify-between group gap-4 cursor-pointer p-1 rounded-lg transition-colors ${filterDept === dept.name ? 'bg-white/5' : 'hover:bg-white/5'}`}
+                     >
                        <div className="flex items-center gap-3 overflow-hidden">
-                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6] }} />
-                         <span className="text-[11px] font-bold text-slate-300 truncate leading-none">{dept.name}</span>
+                         <div 
+                           className="w-2 h-2 rounded-full flex-shrink-0 transition-transform group-hover:scale-125" 
+                           style={{ 
+                             backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6],
+                             opacity: filterDept === null || filterDept === dept.name ? 1 : 0.2
+                           }} 
+                         />
+                         <span className={`text-[11px] font-bold truncate leading-none transition-colors ${filterDept === dept.name ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                           {dept.name}
+                         </span>
                        </div>
                        <span className="text-[11px] font-mono font-bold text-slate-500 group-hover:text-white transition-colors">{dept.value}</span>
                      </div>
@@ -210,7 +251,9 @@ export default function DashboardView({ stats, opportunities, onAddClick, onSeed
         <div className="lg:col-span-2 bg-[#0D1117] rounded-2xl border border-white/5 p-8 shadow-2xl">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-display font-bold text-xl text-white">
-              {filterRec ? `${filterRec} Strategies` : 'Strategic Pipeline'}
+              {filterRec || filterDept 
+                ? `${filterRec || ''} ${filterDept ? `in ${filterDept}` : ''} Strategies`.trim()
+                : 'Strategic Pipeline'}
             </h3>
             <button 
               onClick={onAddClick}
@@ -317,140 +360,10 @@ export default function DashboardView({ stats, opportunities, onAddClick, onSeed
         </div>
       </div>
 
-      <Modal 
-        isOpen={selectedOpp !== null} 
-        onClose={() => setSelectedOpp(null)}
-        title="Strategy Diagnostic Brief"
-      >
-        {selectedOpp && (
-          <div className="space-y-10">
-            {/* Header Section */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-[#0D1117] border border-white/5 p-8 sm:p-10 shadow-2xl">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${getRecBadgeStyles(selectedOpp.recommendation)} bg-black/40`}>
-                    Recommendation: {selectedOpp.recommendation}
-                  </div>
-                  <div className="px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] bg-white/5 border border-white/5">
-                    Dept: {selectedOpp.department}
-                  </div>
-                </div>
-
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                  <div className="space-y-3">
-                    <h2 className="text-3xl sm:text-5xl font-display font-black text-white italic tracking-tight leading-tight uppercase">
-                      {selectedOpp.title}
-                    </h2>
-                    <div className="flex items-center gap-4 text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <Users size={16} className="text-indigo-400" />
-                        <span className="text-sm font-medium">{selectedOpp.targetUsers}</span>
-                      </div>
-                      <div className="w-1 h-1 rounded-full bg-slate-700" />
-                      <div className="flex items-center gap-2">
-                        <Activity size={16} className="text-emerald-400" />
-                        <span className="text-sm font-medium">Diagnostic Index: {selectedOpp.totalScore}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-shrink-0 bg-black/40 p-8 rounded-3xl border border-white/5 shadow-inner text-center min-w-[160px]">
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] mb-2">Value Score</p>
-                    <p className="text-6xl font-display font-black text-white italic tracking-tighter">{selectedOpp.totalScore}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Metrics Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <ScoreMetric label="Reach" value={selectedOpp.reach} description="Breadth of impact across the ecosystem" color="blue" />
-              <ScoreMetric label="Impact" value={selectedOpp.impact} description="Depth of business transformation" color="emerald" />
-              <ScoreMetric label="Feasibility" value={selectedOpp.feasibility} description="Technical readiness and ease" color="amber" />
-            </div>
-
-            {/* Analysis Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="space-y-8">
-                <section className="space-y-4">
-                  <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-3 px-2">
-                    <div className="w-1.5 h-4 bg-red-500 rounded-full" />
-                    Problem Definition
-                  </h4>
-                  <div className="bg-[#0D1117]/50 p-8 rounded-3xl border border-white/5 text-slate-200 text-lg leading-relaxed italic">
-                    "{selectedOpp.problem}"
-                  </div>
-                </section>
-
-                <section className="space-y-4">
-                  <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-3 px-2">
-                    <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-                    Solution Architecture
-                  </h4>
-                  <div className="bg-indigo-600/10 p-8 rounded-3xl border border-indigo-500/20 text-white text-xl font-bold leading-relaxed italic">
-                    {selectedOpp.solution}
-                  </div>
-                </section>
-              </div>
-
-              <div className="space-y-8">
-                <section className="space-y-4">
-                  <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-3 px-2">
-                    <div className="w-1.5 h-4 bg-emerald-500 rounded-full" />
-                    Projected Value
-                  </h4>
-                  <div className="bg-emerald-600/10 p-8 rounded-3xl border border-emerald-500/20 text-emerald-400 text-3xl font-display font-black italic tracking-tight uppercase">
-                    {selectedOpp.benefit}
-                  </div>
-                </section>
-
-                <section className="space-y-4">
-                  <h4 className="text-[11px] font-black uppercase text-slate-500 tracking-[0.3em] flex items-center gap-3 px-2">
-                    <div className="w-1.5 h-4 bg-slate-500 rounded-full" />
-                    Target Success Metrics
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selectedOpp.kpis.map(kpi => (
-                      <div key={kpi} className="px-5 py-4 bg-[#0D1117] border border-white/5 text-white text-xs font-bold rounded-2xl shadow-xl flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                        {kpi}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </div>
-            </div>
-
-            {/* Neural Rationale */}
-            <section className="pt-8 border-t border-white/5 space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                <Layers size={18} className="text-slate-600" />
-                <h4 className="text-[11px] font-black uppercase text-slate-600 tracking-[0.4em]">Strategic Rationalization</h4>
-              </div>
-              <div className="bg-black/20 p-8 rounded-[2rem] border border-white/5 border-dashed">
-                <p className="text-slate-400 text-sm leading-relaxed font-medium">
-                  {selectedOpp.explanation}
-                </p>
-              </div>
-            </section>
-            
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row justify-end gap-4 pt-10 border-t border-white/5">
-              <button 
-                onClick={() => setSelectedOpp(null)}
-                className="px-8 py-5 border border-white/10 text-slate-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:text-white hover:bg-white/5 transition-all"
-              >
-                Exit Brief
-              </button>
-              <button className="px-10 py-5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:bg-indigo-500 hover:-translate-y-1 transition-all active:scale-95">
-                Generate Architecture Spec
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <OpportunityDetailModal 
+        selectedOpp={selectedOpp} 
+        onClose={() => setSelectedOpp(null)} 
+      />
     </div>
   );
 }
@@ -485,63 +398,6 @@ function StatCard({ title, value, icon, color, description }: { title: string, v
   );
 }
 
-function DetailChip({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="bg-[#161B22] px-4 py-1.5 rounded-xl border border-white/5 shadow-xl">
-      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mr-3">{label}</span>
-      <span className="text-xs font-bold text-white">{value}</span>
-    </div>
-  );
-}
-
-function ScoreMetric({ label, value, description, color }: { label: string, value: number, description: string, color: 'blue' | 'emerald' | 'amber' }) {
-  const colors = {
-    blue: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20 shadow-indigo-500/10',
-    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-emerald-500/10',
-    amber: 'text-amber-400 bg-amber-500/10 border-amber-500/20 shadow-amber-500/10'
-  };
-
-  const orbColors = {
-    blue: 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]',
-    emerald: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]',
-    amber: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]'
-  };
-
-  return (
-    <div className={`p-8 rounded-[2rem] border ${colors[color].split(' ')[2]} bg-[#0D1117] flex flex-col items-center text-center space-y-4 group hover:shadow-2xl transition-all hover:bg-[#161B22]`}>
-      <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] font-sans">{label} Index</h5>
-      <div className="relative">
-        <p className="text-5xl font-display font-black text-white group-hover:scale-110 transition-transform italic">{value}<span className="text-xs text-slate-700 italic font-medium ml-1">/5</span></p>
-      </div>
-      <p className="text-[10px] font-bold text-slate-400 leading-tight uppercase tracking-widest">{description}</p>
-      <div className="flex gap-1.5 pt-4">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className={`h-1.5 w-8 rounded-full transition-all duration-700 ${i <= value ? orbColors[color] : 'bg-white/5'}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ScoreBlock({ label, value, icon, color, bgColor }: { label: string, value: number, icon: ReactNode, color: string, bgColor: string }) {
-  return (
-    <div className="flex flex-col items-center bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-      <div className={`w-10 h-10 rounded-full ${bgColor} ${color} flex items-center justify-center mb-2`}>
-        {icon}
-      </div>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div 
-            key={i} 
-            className={`w-2 h-2 rounded-full ${i <= value ? color.replace('text', 'bg') : 'bg-slate-200'}`} 
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Lightbulb({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -552,32 +408,12 @@ function Lightbulb({ className }: { className?: string }) {
   );
 }
 
-function getBarColor(rec: Recommendation) {
-  switch (rec) {
-    case 'Pursue': return 'bg-emerald-500';
-    case 'Pilot': return 'bg-amber-500';
-    case 'Refine': return 'bg-blue-500';
-    case 'Park': return 'bg-slate-400';
-    default: return 'bg-slate-400';
-  }
-}
-
 function getRecBadgeStyles(rec: Recommendation) {
   switch (rec) {
     case 'Pursue': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
     case 'Pilot': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
     case 'Refine': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
-  }
-}
-
-function getRecommendationStyles(rec: Recommendation) {
-  switch (rec) {
-    case 'Pursue': return 'bg-emerald-500/20 text-emerald-400';
-    case 'Pilot': return 'bg-amber-500/20 text-amber-400';
-    case 'Refine': return 'bg-blue-500/20 text-blue-400';
-    case 'Park': return 'bg-slate-500/20 text-slate-400';
-    default: return 'bg-slate-500/20 text-slate-400';
   }
 }
 

@@ -67,8 +67,11 @@ export default function App() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login Error:", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        alert("Domain Not Authorized: Please add this Vercel URL to your Authorized Domains in the Firebase Console (Authentication > Settings).");
+      }
     }
   };
 
