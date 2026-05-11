@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidOpportunity(data) {
+      return data.keys().hasAll(['title', 'department', 'problem', 'solution', 'targetUsers', 'benefit', 'kpis', 'reach', 'impact', 'feasibility', 'totalScore', 'recommendation', 'explanation', 'createdAt', 'userId'])
+        && data.keys().size() >= 15 && data.keys().size() <= 16
+        && data.title is string && data.title.size() <= 200
+        && data.department in ['HR', 'IT', 'Marketing', 'Sales', 'Finance', 'Operations', 'Customer Support']
+        && data.problem is string && data.problem.size() <= 2000
+        && data.solution is string && data.solution.size() <= 2000
+        && data.targetUsers is string && data.targetUsers.size() <= 500
+        && data.benefit is string && data.benefit.size() <= 1000
+        && data.kpis is list && data.kpis.size() <= 10
+        && data.reach is number && data.reach >= 1 && data.reach <= 5
+        && data.impact is number && data.impact >= 1 && data.impact <= 5
+        && data.feasibility is number && data.feasibility >= 1 && data.feasibility <= 5
+        && data.totalScore is number
+        && data.recommendation in ['Pursue', 'Pilot', 'Refine', 'Park']
+        && data.explanation is string && data.explanation.size() <= 2000
+        && data.createdAt is string
+        && data.userId == request.auth.uid;
+    }
+
+    match /opportunities/{opportunityId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidOpportunity(incoming());
+        
+      allow update: if isOwner(existing().userId)
+        && isValidOpportunity(incoming())
+        && incoming().userId == existing().userId
+        && (
+          // Action: Full Update
+          incoming().diff(existing()).affectedKeys().hasAny(['title', 'department', 'problem', 'solution', 'targetUsers', 'benefit', 'kpis', 'reach', 'impact', 'feasibility', 'totalScore', 'recommendation', 'explanation'])
+        );
+
+      allow delete: if isOwner(existing().userId);
+    }
+  }
+}

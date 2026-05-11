@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "Opportunity": {
+      "title": "Strategic Opportunity",
+      "description": "An AI strategic transformation initiative blueprint.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the strategy." },
+        "department": { "type": "string", "enum": ["HR", "IT", "Marketing", "Sales", "Finance", "Operations", "Customer Support"] },
+        "problem": { "type": "string", "description": "The friction point being addressed." },
+        "solution": { "type": "string", "description": "The proposed AI solution architecture." },
+        "targetUsers": { "type": "string", "description": "Primary beneficiaries of the solution." },
+        "benefit": { "type": "string", "description": "Quantifiable strategic benefit." },
+        "kpis": { "type": "array", "items": { "type": "string" }, "description": "Success metrics." },
+        "reach": { "type": "number", "minimum": 1, "maximum": 5 },
+        "impact": { "type": "number", "minimum": 1, "maximum": 5 },
+        "feasibility": { "type": "number", "minimum": 1, "maximum": 5 },
+        "totalScore": { "type": "number" },
+        "recommendation": { "type": "string", "enum": ["Pursue", "Pilot", "Refine", "Park"] },
+        "explanation": { "type": "string", "description": "Neural diagnostic reasoning." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string", "description": "The owner of this opportunity." }
+      },
+      "required": ["title", "department", "problem", "solution", "targetUsers", "benefit", "kpis", "reach", "impact", "feasibility", "totalScore", "recommendation", "explanation", "createdAt", "userId"]
+    }
+  },
+  "firestore": {
+    "/opportunities/{opportunityId}": {
+      "schema": "Opportunity",
+      "description": "Collection of strategic AI opportunities."
+    }
+  }
+}
